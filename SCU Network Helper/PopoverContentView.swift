@@ -14,7 +14,6 @@ struct PopoverContentView: View {
     // === 用户配置 (自动保存) ===
     // 读取 AppStorage 中的账号密码
     @AppStorage("username") private var username = ""
-    @AppStorage("password") private var password = ""
     @AppStorage("serviceName") private var serviceName = "EDUNET"
     @AppStorage("isAutoLoginEnabled") private var isAutoLoginEnabled = false
     // 网卡绑定配置
@@ -30,22 +29,27 @@ struct PopoverContentView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                     // 动态颜色显示状态
-                    Text(networkManager.loginStatus)
+                    Text(networkManager.connectionStatus)
                         .font(.headline)
-                        .foregroundColor((networkManager.loginStatus == "登录成功" || networkManager.loginStatus == "已在线") ? .green : .orange)
+                        .foregroundColor((networkManager.connectionStatus == "登录成功" || networkManager.connectionStatus == "已在线" || networkManager.connectionStatus == "休眠") ? .green : .orange)
                 }
                 
                 Button(action: {
-                    // 使用 Task 包装，在按钮点击时发起异步请求
                     Task {
-                        await networkManager.login(userId: username, pass: password, service: serviceName)
+                        let securePassword = KeychainHelper.standard.readPassword() ?? ""
+                        if securePassword.isEmpty {
+                            networkManager.connectionStatus = "请先在设置中保存密码"
+                            return
+                        }
+                        // 🌟 这里多加了一个 interface 参数
+                        await networkManager.login(userId: username, pass: securePassword, service: serviceName, interface: loginInterface)
                     }
                 }) {
                     Text(networkManager.isLoggingIn ? "正在请求..." : "手动登录")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(networkManager.isLoggingIn || username.isEmpty || password.isEmpty)
+                .disabled(networkManager.isLoggingIn || username.isEmpty)
             }
             
             Divider()
@@ -115,6 +119,6 @@ struct PopoverContentView: View {
     
 }
 
-#Preview {
-    PopoverContentView()
-}
+//#Preview {
+//    PopoverContentView()
+//}
